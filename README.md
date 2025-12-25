@@ -85,5 +85,48 @@ npm run run -- --job androidPing
 }
 ```
 
+
 ## 実行ログ
 `runs/YYYY-MM-DD_HH-mm-ss/` フォルダに全てのログと成果物が保存されます。
+*   `run.json`: 実行ステータス、リトライ回数、失敗時のエラーメッセージ
+*   `artifacts/`: 各ジョブの出力ファイル（.json, .png等）
+*   `artifacts/summary.json`: Android系ジョブの簡易集計結果
+
+---
+
+## 運用マニュアル (2025-12-25更新)
+
+### ⚠️ 重要: ソースコードの正本について
+*   **Playwright_old は参照しないでください。**
+*   本番コードは **GitHub の `Newrona-pi/smart_phone_farm` リポジトリ (mainブランチ)** が常に正本です。
+*   変更を加える際は、必ずFeatureブランチを作成→PR→mainへマージの手順を踏んでください。
+
+### スマホファーム運用 (Android)
+
+#### 1. タスクスケジューラによる自動運用
+以下のタスクが10分間隔で登録され、自動実行されます。
+*   **Playwright\AndroidPing**: 毎時 00, 10, 20...分 実行（生存確認）
+*   **Playwright\AndroidRecover**: 毎時 02, 12, 22...分 実行（PINGから2分後、復旧試行）
+
+**タスクの有効/無効化**:
+*   管理者権限のコマンドプロンプトやPowerShellで以下を実行、またはGUI「タスクスケジューラ」から操作してください。
+    *   無効化: `schtasks /Change /TN "Playwright\AndroidPing" /DISABLE`
+    *   有効化: `schtasks /Change /TN "Playwright\AndroidPing" /ENABLE`
+
+#### 2. エラー判断手順
+*   **Discord通知**: 失敗時はWebhook URLへ通知が飛びます。
+*   **ログ確認**: `runs` 以下の最新フォルダを確認します。
+    *   **Attempt 1/2 success**: 正常。1回目で復旧成功、または最初から正常。
+    *   **Attempt x/2 failed**: リトライ中。
+*   **手動介入が必要なケース**:
+    *   `UNAUTHORIZED` (認証切れ): 実機の画面でUSBデバッグを許可してください。
+    *   `NOT_FOUND` (認識不可): USBケーブルの抜け、ハブの電源などを確認してください。
+    *   これらは `run.json` の `error` フィールドや、Runnerログに **"Requesting noRetry"** と表示され、無駄なリトライは行われません。
+
+#### 3. 手動実行（検証用）
+タスクスケジューラとは別に、任意のタイミングで実行可能です。
+CMD/PSでルートディレクトリ (`C:\Users\se_pi\Desktop\Playwright`) に移動し、以下のコマンドを実行します。
+```powershell
+npm run run -- --job androidRecover
+```
+

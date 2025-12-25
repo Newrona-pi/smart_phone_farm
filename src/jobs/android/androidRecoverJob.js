@@ -210,7 +210,6 @@ module.exports = {
                 }
             }
         }
-
         fs.writeFileSync(path.join(artifactsDir, 'android_recover_postcheck.json'), JSON.stringify(postCheckResults, null, 2));
 
         const summary = {
