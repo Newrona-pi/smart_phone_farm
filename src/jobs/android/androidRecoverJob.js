@@ -189,6 +189,7 @@ module.exports = {
         const postCheckResults = [];
         let recoveredCount = 0;
         let unrecoveredCount = 0;
+        const failedDevices = [];
 
         // Re-evaluate ALL devices to confirm final state
         for (const device of devices) {
@@ -203,11 +204,11 @@ module.exports = {
                     logger.log(`  [${device.name}] RECOVERED`);
                 } else {
                     unrecoveredCount++;
+                    failedDevices.push({ ...device, status });
                     logger.log(`  [${device.name}] UNRECOVERED (${status})`);
                 }
             }
         }
-
         fs.writeFileSync(path.join(artifactsDir, 'android_recover_postcheck.json'), JSON.stringify(postCheckResults, null, 2));
 
         const summary = {
@@ -221,7 +222,23 @@ module.exports = {
         logger.log(`Summary: Recovered ${recoveredCount}, Failed ${unrecoveredCount}`);
 
         if (unrecoveredCount > 0) {
-            throw new Error(`${unrecoveredCount} devices failed to recover.`);
+            const err = new Error(`${unrecoveredCount} devices failed to recover.`);
+
+            // Attach device info to error
+            err.deviceId = failedDevices.map(d => d.id).join(',');
+            err.deviceName = failedDevices.map(d => d.name).join(',');
+            err.deviceStatus = failedDevices.map(d => d.status).join(',');
+
+            // If all failures are due to fatal states (NOT_FOUND, UNAUTHORIZED, UNKNOWN),
+            // there is no point in retrying.
+            const allFatal = failedDevices.every(d => ['NOT_FOUND', 'UNAUTHORIZED', 'UNKNOWN'].includes(d.status));
+
+            if (allFatal) {
+                err.noRetry = true;
+                logger.log(`[androidRecover] Non-recoverable state detected. Requesting noRetry.`);
+            }
+
+            throw err;
         }
 
         return summary;
