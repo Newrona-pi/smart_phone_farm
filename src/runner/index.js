@@ -1,0 +1,168 @@
+const fs = require('fs');
+const path = require('path');
+const minimist = require('minimist');
+const jobRegistry = require('./jobRegistry');
+const Logger = require('./logger');
+const { ensureDir, getTimestamp } = require('./utils');
+const configDefault = require('../../config/config.json');
+
+async function main() {
+    const args = minimist(process.argv.slice(2));
+
+    // --help or no args
+    if (args.help) {
+        console.log(`
+      Usage:
+        npm run jobs                    List all available jobs
+        npm run run -- --job <name>     Run a specific job
+        
+      Options:
+        --concurrency <n>               Number of parallel workers (default: config)
+        --timeout <ms>                  Timeout for job execution (default: config)
+        --retries <n>                   Max retries on failure (default: config)
+    `);
+        process.exit(0);
+    }
+
+    // List jobs
+    const projectRoot = path.resolve(__dirname, '../../');
+    await jobRegistry.discover(projectRoot);
+
+    if (process.env.npm_lifecycle_event === 'jobs' || args._.includes('list')) {
+        const jobs = jobRegistry.listJobs();
+        console.log('Available Jobs:');
+        jobs.forEach(j => console.log(` - ${j}`));
+        return;
+    }
+
+    // Setup Run Config
+    const jobName = args.job;
+    if (!jobName) {
+        console.error('Error: No job specified. Use --job <name>');
+        process.exit(1);
+    }
+
+    const jobFn = jobRegistry.getJob(jobName);
+    if (!jobFn) {
+        console.error(`Error: Job "${jobName}" not found.`);
+        process.exit(1);
+    }
+
+    const runConfig = {
+        concurrency: args.concurrency || configDefault.concurrency,
+        timeout: args.timeout || configDefault.timeout,
+        retries: args.retries !== undefined ? args.retries : configDefault.retries,
+        logDir: path.join(projectRoot, configDefault.logDir || 'runs')
+    };
+
+    // Create Run Directory
+    const runId = getTimestamp();
+    const runDir = path.join(runConfig.logDir, runId);
+    ensureDir(runDir);
+    const artifactsDir = path.join(runDir, 'artifacts');
+    ensureDir(artifactsDir);
+
+    // Initialize Logger
+    const logger = new Logger(runDir);
+    logger.log(`Starting execution: ${runId}`);
+    logger.log(`Job: ${jobName}`);
+    logger.log(`Config: ${JSON.stringify(runConfig)}`);
+
+    const runResult = {
+        id: runId,
+        job: jobName,
+        startTime: new Date().toISOString(),
+        status: 'pending',
+        retryCount: 0,
+        error: null,
+        durationMs: 0
+    };
+
+    // Execution Loop with Retries
+    let attempt = 0;
+    const maxAttempts = 1 + runConfig.retries;
+    let success = false;
+
+    const start = Date.now();
+
+    while (attempt < maxAttempts && !success) {
+        attempt++;
+        logger.log(`\nAttempt ${attempt}/${maxAttempts}...`);
+
+        try {
+            // Pass context to job
+            const context = {
+                logger,
+                artifactsDir,
+                timeout: runConfig.timeout,
+                args: args // Pass raw CLI args
+            };
+
+            // Parallel Execution
+            const workers = [];
+            const workerResults = [];
+
+            for (let i = 0; i < runConfig.concurrency; i++) {
+                workers.push((async (workerId) => {
+                    try {
+                        logger.log(`[Worker ${workerId}] Starting...`);
+                        const result = await jobFn.run({ ...context, workerId }); // Pass workerId if job wants it
+                        if (result && typeof result === 'object') {
+                            workerResults.push(result);
+                        }
+                        logger.log(`[Worker ${workerId}] Finished.`);
+                    } catch (e) {
+                        logger.error(`[Worker ${workerId}] Failed: ${e.message}`);
+                        throw e;
+                    }
+                })(i + 1));
+            }
+
+            await Promise.all(workers);
+
+            success = true;
+            runResult.status = 'success';
+            // Merge worker results into runResult (last one wins for simple scalars, or handle arrays if needed)
+            // For watchScreenshot, usually single concurrency, so we just merge.
+            workerResults.forEach(res => Object.assign(runResult, res));
+
+            logger.log(`Attempt ${attempt} succeeded (All workers).`);
+        } catch (err) {
+            logger.error(`Attempt ${attempt} failed: ${err.message}`);
+            if (err.stack) logger.error(err.stack);
+
+            runResult.error = err.message; // Keep last error
+            runResult.retryCount = attempt - 1; // 0 retries on 1st attempt
+
+            // Check if error requests to stop retrying
+            if (err.noRetry === true) {
+                logger.error(`[Runner] Error indicates noRetry=true. Aborting further attempts.`);
+                runResult.status = 'failed';
+                success = false;
+                break; // Break the while loop immediately
+            }
+
+            if (attempt >= maxAttempts) {
+                runResult.status = 'failed';
+                logger.error(`Max retries reached. Job failed.`);
+            }
+        }
+    }
+
+    runResult.endTime = new Date().toISOString();
+    runResult.durationMs = Date.now() - start;
+
+    // Save run.json
+    const runJsonPath = path.join(runDir, 'run.json');
+    fs.writeFileSync(runJsonPath, JSON.stringify(runResult, null, 2));
+    logger.log(`Saved run result to ${runJsonPath}`);
+
+    logger.close();
+
+    if (!success) process.exit(1);
+}
+
+main().catch(err => {
+    console.error('Fatal Runner Error:', err);
+    process.exit(1);
+});

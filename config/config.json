@@ -1,0 +1,70 @@
+{
+  "concurrency": 1,
+  "timeout": 30000,
+  "retries": 1,
+  "logDir": "runs",
+  "artifactsDir": "artifacts",
+  "watchScreenshot": {
+    "targetUrl": "https://example.com",
+    "thresholdPercent": 0.5,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "linkCheck": {
+    "targetUrl": "https://example.com",
+    "sameHostOnly": true,
+    "maxLinks": 50,
+    "timeoutMs": 10000,
+    "failOnAnyError": false
+  },
+  "rssWatch": {
+    "feeds": [
+      {
+        "name": "MIT News - AI",
+        "url": "https://news.mit.edu/rss/topic/artificial-intelligence2"
+      }
+    ],
+    "maxItemsPerFeed": 50,
+    "timeoutMs": 15000,
+    "firstRunNoNewItems": false,
+    "dedupeStorePath": "data/rss_seen.json",
+    "filters": {
+      "includeKeywords": [],
+      "excludeKeywords": [],
+      "excludeSources": []
+    },
+    "output": {
+      "writeJson": true,
+      "writeCsv": true
+    }
+  },
+  "composePost": {
+    "useLLM": true,
+    "model": "gpt-4o-mini",
+    "tone": "mid"
+  },
+  "postToDiscord": {
+    "webhookUrl": "ENV:DISCORD_WEBHOOK_URL",
+    "username": "AI News Bot",
+    "avatarUrl": "",
+    "maxPostsPerRun": 3,
+    "useLLM": false
+  },
+  "android": {
+    "devices": [
+      {
+        "id": "320135998138",
+        "name": "Android-12"
+      },
+      {
+        "id": "320326957525",
+        "name": "Android-13"
+      }
+    ],
+    "timeouts": {
+      "adbMs": 8000
+    }
+  }
+}
