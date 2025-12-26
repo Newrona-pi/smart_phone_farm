@@ -126,7 +126,18 @@ npm run run -- --job androidPing
 #### 3. 手動実行（検証用）
 タスクスケジューラとは別に、任意のタイミングで実行可能です。
 CMD/PSでルートディレクトリ (`C:\Users\se_pi\Desktop\Playwright`) に移動し、以下のコマンドを実行します。
-```powershell
-npm run run -- --job androidRecover
+
 ```
+
+#### 4. 運用者向けツール (1クリック操作)
+PowerShellを使用せず、ダブルクリックだけで運用操作が可能です。
+
+**A. 端末入れ替え時 (`tools\devices\update_devices.bat`)**
+*   接続されたAndroid端末を自動検知し、`config\config.json` を更新します。
+*   `unauthorized` や `offline` の端末は除外されます。
+*   実行後、更新された端末一覧が表示されます。
+
+**B. 動作確認時 (`tools\check_runs.bat`)**
+*   `androidPing` → `androidRecover` を順番に実行し、最新の結果 (`run.json`) を表示します。
+*   結果が正常なら緑色で `SUCCESS`、失敗なら赤色で `FAILED` が表示されます。
 
