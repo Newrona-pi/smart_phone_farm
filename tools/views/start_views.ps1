@@ -41,20 +41,25 @@ foreach ($line in $lines) {
     if ($parts.Count -ge 1) { $onlineIds += $parts[0] }
 }
 
+$basePort = 27183
+$i = 0
+
 foreach ($dev in $devices) {
     $id = $dev.id
     $name = $dev.name
     
     if ($onlineIds -contains $id) {
-        Write-Host "Starting scrcpy for [$name] ($id)..." -ForegroundColor Green
-        # Start scrcpy detached
-        # Ensure scrcpy is in PATH
+        $port = $basePort + $i
+        Write-Host "Starting scrcpy for [$name] ($id) on port $port..." -ForegroundColor Green
+        # Start scrcpy detached with unique port
+        # User confirmed --port avoids collision. Removing --force-adb-forward
         try {
-            Start-Process scrcpy -ArgumentList "-s $id", "--window-title `"$name`"", "--force-adb-forward"
+            Start-Process scrcpy -ArgumentList "-s $id", "--window-title `"$name`"", "--port $port"
         }
         catch {
             Write-Host "Failed to start scrcpy. Is it in your PATH?" -ForegroundColor Red
         }
+        $i++
     }
     else {
         Write-Host "Skipping [$name] ($id) - Not found or unauthorized/offline." -ForegroundColor Yellow
