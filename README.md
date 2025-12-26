@@ -141,3 +141,7 @@ PowerShellを使用せず、ダブルクリックだけで運用操作が可能�
 *   `androidPing` → `androidRecover` を順番に実行し、最新の結果 (`run.json`) を表示します。
 *   結果が正常なら緑色で `SUCCESS`、失敗なら赤色で `FAILED` が表示されます。
 
+**C. 画面表示デバッグ (debug版)**
+*   `tools\views\start_views_debug.bat`: 詳細ログ付きで scrcpy を起動します。起動しない端末がある場合は `tools\views\logs` を確認してください。
+*   `tools\views\stop_views_debug.bat`: 全ての scrcpy プロセスを確実に終了し、結果をログ記録します。
+
