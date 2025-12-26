@@ -1,7 +1,8 @@
 
 $currentScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $logDir = Join-Path $currentScriptDir "..\runs"
-$logDir = Resolve-Path $logDir -ReturnValue -ErrorAction SilentlyContinue
+$resolved = Resolve-Path $logDir -ErrorAction SilentlyContinue
+if ($resolved) { $logDir = $resolved.Path }
 
 if (-not $logDir -or -not (Test-Path $logDir)) {
     Write-Host "Runs directory not found at: $logDir" -ForegroundColor Red
