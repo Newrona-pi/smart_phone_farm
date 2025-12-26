@@ -32,7 +32,7 @@ foreach ($dev in $devices) {
         # Start scrcpy detached
         # Ensure scrcpy is in PATH
         try {
-            Start-Process scrcpy -ArgumentList "-s $id", "--window-title `"$name`"" -WindowStyle Hidden
+            Start-Process scrcpy -ArgumentList "-s $id", "--window-title `"$name`"", "--force-adb-forward"
         }
         catch {
             Write-Host "Failed to start scrcpy. Is it in your PATH?" -ForegroundColor Red
