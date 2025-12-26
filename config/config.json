@@ -55,12 +55,20 @@
   "android": {
     "devices": [
       {
-        "id": "320135998138",
-        "name": "Android-12"
+        "id": "G9T041285Y5010603611",
+        "name": "Android-01"
       },
       {
-        "id": "320326957525",
-        "name": "Android-13"
+        "id": "G9T041285Y5031601148",
+        "name": "Android-02"
+      },
+      {
+        "id": "G9T041285Y5031601696",
+        "name": "Android-03"
+      },
+      {
+        "id": "G9T041285Y5031602537",
+        "name": "Android-04"
       }
     ],
     "timeouts": {
